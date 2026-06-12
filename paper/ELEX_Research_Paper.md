@@ -8,7 +8,7 @@ Concept: Elevation-aware 2D bridge/interchange disambiguation for dense urban hi
 Case Motivation: Dallas-Fort Worth multi-level freeway interchanges
 
 ## Abstract
-Dense urban interchanges compress multiple ramps, frontage roads, direct connectors, and stacked flyovers into the same two-dimensional screen space. On small in-car displays, this produces route ambiguity at exactly the moment when drivers need fast lane and exit decisions. This paper proposes ELEX, an Elevation-aware Local Exploded View renderer for 2D navigation maps. ELEX combines bounded elevation luminance, non-route opacity reduction, route halo, flow arrows, soft stack shadows, and a local explode transform. The method avoids using red, orange, and green because those color channels are already associated with traffic state in Google Maps. A synthetic Dallas-Fort Worth-style interchange benchmark compares five algorithmic variants: baseline flat 2D rendering, elevation luminance only, normal-offset layering, triggered explode only, and the full ELEX multi-channel renderer. In the synthetic benchmark, full ELEX increased the Perceptual Discriminability Index by 81.9% and reduced the comparative confusion-risk proxy by 42.6% versus the baseline. The results are prototype-level, not a completed human-subjects safety claim. The paper therefore also defines a publishable evaluation plan using exit accuracy, decision latency, route deviation distance, glance duration, and NASA-TLX workload scoring.
+Dense urban interchanges compress multiple ramps, frontage roads, direct connectors, and stacked flyovers into the same two-dimensional screen space. On small in-car displays, this produces route ambiguity at exactly the moment when drivers need fast lane and exit decisions. This paper proposes ELEX, an Elevation-aware Local Exploded View renderer for 2D navigation maps. ELEX combines bounded elevation luminance, non-route opacity reduction, route halo, flow arrows, soft stack shadows, and a local explode transform. The method avoids using red, orange, and green because those color channels are already associated with traffic state in Google Maps. A synthetic Dallas-Fort Worth-style interchange benchmark compares five algorithmic variants: baseline flat 2D rendering, elevation luminance only, normal-offset layering, triggered explode only, and the full ELEX multi-channel renderer. In the synthetic benchmark, full ELEX increased the Perceptual Discriminability Index by 97.9% and reduced the comparative confusion-risk proxy by 47.1% versus the baseline. The results are prototype-level, not a completed human-subjects safety claim. The paper therefore also defines a publishable evaluation plan using exit accuracy, decision latency, route deviation distance, glance duration, and NASA-TLX workload scoring.
 **Keywords:** navigation HMI, CarPlay, bridge layout, flyover visualization, exploded views, cartographic design, route guidance, cognitive load
 **Figure 1. Conceptual before/after navigation view and road-eye illustration used to motivate the problem. This is a generated design illustration, not a measured field image.**
 
@@ -91,7 +91,7 @@ The current results are prototype-level, not final driver-safety evidence. Three
 **Figure 9. CarPlay-style mockup showing the baseline dense view and the clarified ELEX view on the same synthetic interchange.**
 
 ## 7. Results
-The full ELEX model performed best across the synthetic benchmark. Compared with baseline flat rendering, PDI increased from 36.33 to 66.10, a gain of 81.9%. The confusion-risk proxy decreased from 3.72 to 2.13, a reduction of 42.6%. Mean nearby candidate roads decreased by -4.0%, and ambiguous-route share changed from 34.8% to 30.4%.
+The full ELEX model performed best across the synthetic benchmark. Compared with baseline flat rendering, PDI increased from 33.52 to 66.33, a gain of 97.9%. The confusion-risk proxy decreased from 4.02 to 2.12, a reduction of 47.1%. Mean nearby candidate roads changed only marginally (1.09 to 1.13, +4.0%); because the confusion-risk proxy divides candidate count by route discriminability, the large rise in discriminability still drove that proxy down sharply. Ambiguous-route share changed from 34.8% to 30.4%.
 The ablation results are important. Elevation luminance alone improved discriminability only slightly because it explained road level but did not sufficiently emphasize the active route. Triggered explosion alone reduced geometric clutter but still left the route under-specified. The normal-offset method helped separation but created a less controlled distortion. The complete ELEX approach worked best because it combined geometry, route hierarchy, and direction cues.
 
 ## 8. Discussion
@@ -195,11 +195,11 @@ Running `python src/elex_simulation.py` regenerates every figure (including the 
 ### Table 3
 | Algorithm | PDI ↑ | Candidate roads ↓ | Confusion risk ↓ | Ambiguous share ↓ |
 | --- | --- | --- | --- | --- |
-| Baseline flat 2D | 36.33 | 1.09 | 3.72 | 34.8% |
-| Elevation luminance | 39.96 | 1.09 | 3.39 | 34.8% |
-| Normal-offset layering | 34.23 | 1.46 | 5.01 | 41.7% |
-| Triggered exploded view | 36.52 | 1.14 | 3.85 | 33.3% |
-| Full multi-channel ELEX | 66.10 | 1.13 | 2.13 | 30.4% |
+| Baseline flat 2D | 33.52 | 1.09 | 4.02 | 34.8% |
+| Elevation luminance | 36.52 | 1.09 | 3.70 | 34.8% |
+| Normal-offset layering | 30.41 | 1.46 | 5.62 | 41.7% |
+| Triggered exploded view | 32.71 | 1.14 | 4.29 | 33.3% |
+| Full multi-channel ELEX | 66.33 | 1.13 | 2.12 | 30.4% |
 
 ### Table 4
 | Measure | Definition | Expected direction |
