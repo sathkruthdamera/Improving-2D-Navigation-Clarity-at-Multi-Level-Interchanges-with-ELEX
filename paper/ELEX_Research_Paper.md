@@ -56,12 +56,16 @@ g(d) = max(0, 1 - d/R)
 Here n_e is the road normal, u is the outward unit vector from the conflict center, d is distance from the center, and R is the activation radius. Route segments are shifted less than competing branches to preserve route stability.
 
 ### 4.4 Rendering Order
-Input: road graph G, route R, vehicle position p, look-ahead distance D
-1. Extract subgraph G_local around the predicted decision point.
-2. Estimate road level h_e using layer/bridge tags or lane/elevation data.
-3. Compute complexity score K(v).
-4. If K(v) > threshold and distance(p, v) < D: apply luminance, opacity hierarchy, shadow, route halo, arrows; apply local exploded transform to overlapping edges. Else: render standard route map.
-5. Draw lower layers first, then higher layers, then route halo and route fill.
+The pipeline below is implemented directly in `src/elex_simulation.py`; the function names in parentheses are the actual entry points, so the algorithm is executable rather than descriptive.
+
+Input: road graph G, route R, vehicle position p, look-ahead distance D.
+
+1. Extract the local subgraph around the predicted decision point (`complexity_score` restricts to roads within the perception radius of p).
+2. Estimate each road level h_e from layer/bridge tags or lane/elevation data (`norm_level`).
+3. Compute the complexity score K(v) = w_b B + w_o O + w_z Z + w_s S, with each component normalized to [0, 1] (`complexity_score`).
+4. Activate the clarified view only if K(v) > threshold **and** distance(p, v) < D (`simulate_lookahead`); otherwise render the standard route map. The activation decision over an approaching vehicle is plotted in Figure 8.
+5. When active, apply bounded luminance (`elevation_luminance`), opacity hierarchy, soft stack shadow, route halo and flow arrows, and the local exploded transform to overlapping edges (`exploded_layout`, `draw`).
+6. Composite back-to-front: lower layers first, higher layers next, then the route halo and route fill last (`draw` sorts on `(route, level)` so the active route is always drawn on top).
 
 **Figure 3. Ablation matrix showing which visual channels each algorithm variant uses.**
 
@@ -122,19 +126,52 @@ This paper transforms the original observation - that stacked flyovers are confu
 ## Appendix A. Reproducible Prototype Notes
 The synthetic benchmark is generated from ten road polylines: two mainlines, two frontage/collector roads, four flyovers, and two diagonal distributors. Each road is assigned a logical layer from -1 to 4. The active route is a high-level right-hand loop ramp through the center of the interchange. The evaluation samples the active route inside the activation zone and compares nearby non-route alternatives under each rendering transform.
 
-```text
-for each road e in local_interchange:
-    h = normalize(layer[e])
-    lightness[e] = clip(L_max - k*h, L_min, L_max)
-    if e is active_route:
-        draw halo + casing + thick route stroke + flow arrows
-        explode_amplitude = low
-    else:
-        reduce opacity and desaturate
-        explode_amplitude = normal
-    x_prime = x + level_offset + gated_explode_offset
-render from lower layers to higher layers, then draw the route last
+The complete algorithm is implemented in `src/elex_simulation.py`. The listing below is the actual working core (not pseudocode): the complexity trigger that gates the clarified view, the bounded elevation luminance, and the route-preserving exploded layout.
+
+```python
+def complexity_score(vehicle_pos, roads, cfg):
+    """K(v) = w_b*B + w_o*O + w_z*Z + w_s*S, components normalized to [0, 1]."""
+    q = np.asarray(vehicle_pos, float)
+    dists = np.array([min_dist_point_to_road(q, r) for r in roads])
+    near = dists < cfg.perception_radius
+    if not near.any():
+        return 0.0
+    idx = np.where(near)[0]
+    levels = LEVELS[idx]
+    B = near.sum() / len(roads)                                   # branch factor
+    O = np.exp(-dists[idx] / cfg.overlap_radius).sum() / near.sum()  # overlap density
+    Z = len(np.unique(levels)) / N_LEVELS                        # distinct levels
+    reps = np.array([closest_point_on_road(q, roads[i]) for i in idx])
+    stacked = pairs = 0
+    for a in range(len(idx)):
+        for b in range(a + 1, len(idx)):
+            pairs += 1
+            if np.hypot(*(reps[a] - reps[b])) < cfg.overlap_radius and levels[a] != levels[b]:
+                stacked += 1
+    S = stacked / max(1, pairs)                                  # stacked decisions
+    return cfg.w_branch*B + cfg.w_overlap*O + cfg.w_levels*Z + cfg.w_succession*S
+
+def elevation_luminance(level, cfg):
+    h = (level - MIN_L) / max(1, MAX_L - MIN_L)
+    return float(np.clip(cfg.L_max - cfg.k_lum * h, cfg.L_min, cfg.L_max))
+
+def exploded_layout(r, cfg, route_scale=None):
+    """x' = x + gamma*g(d)*u, with g(d) = max(0, 1 - d/R); route shifted less."""
+    x, y = r.x.copy(), r.y.copy()
+    d = np.hypot(x, y)
+    gate = np.clip(1 - d / cfg.explode_radius_R, 0, 1)           # g(d)
+    ux, uy = x / (d + 1e-8), y / (d + 1e-8)                      # outward unit u
+    amp = cfg.gamma_base + cfg.gamma_level * (r.level - MIN_L)   # gamma
+    if r.route and route_scale is not None:
+        amp *= route_scale                                      # route preservation
+    return x + amp*gate*ux, y + amp*gate*uy, gate
+
+# Per vehicle step along the approach: activate iff complex AND within window.
+active = K > cfg.trigger_threshold and distance_to_decision_m < cfg.lookahead_m
+# Render back-to-front: lower layers, higher layers, then the active route last.
 ```
+
+Running `python src/elex_simulation.py` regenerates every figure (including the Figure 8 trigger plot and the Figure 9 CarPlay-style mockup) and the metrics table in `data/metrics.csv`.
 
 ## Extracted Tables
 ### Table 1

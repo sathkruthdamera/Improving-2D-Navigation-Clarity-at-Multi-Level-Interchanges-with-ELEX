@@ -46,7 +46,22 @@ pip install numpy matplotlib
 python src/elex_simulation.py
 ```
 
-The script generates comparison figures, simulation-stage screenshots, and metrics for the proposed renderer.
+The script generates comparison figures, simulation-stage screenshots, and metrics for the proposed renderer. Outputs written to `outputs/` (and `data/metrics.csv`):
+
+- `algorithm_variants.png` — the five rendering variants side by side
+- `simulation_steps.png` — raw overlap → elevation cue → explode → final ELEX
+- `pdi_barplot.png`, `confusion_risk_barplot.png` — benchmark metrics
+- `trigger_plot.png` — Figure 8: complexity trigger `K(v)` firing as the vehicle approaches
+- `carplay_mockup.png` — Figure 9: dense baseline vs clarified ELEX on a CarPlay-style display
+- `metrics.csv` — per-variant clarity metrics
+
+To regenerate the readable vertical pipeline diagram (Figure 2):
+
+```bash
+python src/generate_vertical_pipeline_figure.py
+```
+
+Unlike earlier revisions, the complexity trigger `K(v) = w_b·B + w_o·O + w_z·Z + w_s·S` and the look-ahead activation are now a full working implementation (`complexity_score`, `simulate_lookahead`) rather than pseudocode, and the per-sample metric loop is vectorized.
 
 ## Research Status
 
